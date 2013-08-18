@@ -1,0 +1,13 @@
+{
+  "name": "funamushi",
+  "version": "0.0.0",
+  "dependencies": {
+    "raf": "git@github.com:ngryman/raf.js.git",
+    "jquery": "latest",
+    "lodash": "latest",
+    "backbone": "latest",
+    "two": "latest",
+    "hogan": "latest",
+    "tweenjs": "latest"
+  }
+}
