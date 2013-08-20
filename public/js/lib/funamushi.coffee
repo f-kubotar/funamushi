@@ -28,16 +28,7 @@ class CircleView extends Backbone.View
   events:
     'mousemove': (e) ->
       if @world.dragging
-        worldPos = @world.worldPositionFromMouseEvent(e)
-
-        radius2 = @radius * @radius
-        diffToSquared = @shape.translation.distanceToSquared(worldPos) - radius2
-        if Math.abs(diffToSquared) > radius2 * 0.4
-          if @stretchVertexIdx
-            @resetAt @stretchVertexIdx
-            @stretchVertexIdx = null
-        else
-          @stretchAtWorldPos worldPos
+        @collision @world.worldPositionFromMouseEvent(e)
 
     'mouseup': (e) -> 
       @reset()
@@ -51,8 +42,9 @@ class CircleView extends Backbone.View
     # @shape.noStroke()
     @shape.noFill()
 
-    @defaultVertices = (v.clone() for v in @shape.vertices)
-    @tweens = []
+    _.each @shape.vertices, (v) ->
+      v.was = v.clone()
+
     # @resetColor()
 
     # @listenTo @two, 'update', _.throttle(@resetColor, 500)
@@ -86,50 +78,36 @@ class CircleView extends Backbone.View
   intersection: (worldPos) ->
     @shape.translation.distanceToSquared(worldPos) <= @radius * @radius
 
-  stretchAtWorldPos: (worldPos) ->
-    localPos = @localPositionAt worldPos
+  collision: (worldPos) ->
+    radius2 = @radius * @radius
+    diffToSquared = @shape.translation.distanceToSquared(worldPos) - radius2
+    if Math.abs(diffToSquared) > radius2 * 0.4
+      @reset()
+      return
 
     vertices = @shape.vertices
-    # unless @stretchVertexIdx
-    min = Infinity
-    newIdx = 0
-    for i in [0...vertices.length]
-      v = vertices[i]
-      d = v.distanceToSquared(localPos)
-      if min > d
-        min = d
-        newIdx = i
+    localPos = @localPositionAt worldPos
+    stretchVertex = _.min(vertices, (v) -> v.distanceToSquared(localPos))
+    if stretchVertex.tween
+      stretchVertex.tween.stop()
+      stretchVertex.tween = null
+    stretchVertex.copy(localPos)
 
-    if newIdx != @stretchVertexIdx
-      if @stretchVertexIdx
-        @shape.vertices[@stretchVertexIdx].copy @defaultVertices[@stretchVertexIdx]
-      @stretchVertexIdx = newIdx
-
-    v = vertices[@stretchVertexIdx]
-    v.tween.stop() if v.tween
-    v.copy(localPos)
+    v.copy(v.was) for v in vertices when not v.equals(stretchVertex)
 
   reset: ->
-    vertices = @shape.vertices
-    for i in [0...vertices.length]
-      v = vertices[i]
-      d = @defaultVertices[i]
-      v.copy(d) unless v.equals(d)
+    _.each @shape.vertices, (v) ->
+      unless v.equals(v.was)
+        v.tween.stop() if v.tween
 
-  resetAt: (i) ->
-    vertex        = @shape.vertices[i]
-    defaultVertex = @defaultVertices[i]
-
-    vertex.tween.stop() if vertex.tween
-
-    vertex.tween = new TWEEN.Tween(x: vertex.x, y: vertex.y)
-      .to({ x: defaultVertex.x, y: defaultVertex.y}, 500)
-      .onUpdate ->
-        vertex.set @x, @y
-      .onComplete ->
-        vertex.copy defaultVertex
-      .easing(TWEEN.Easing.Bounce.Out)
-      .start()
+        v.tween = new TWEEN.Tween(x: v.x, y: v.y)
+          .to({ x: v.was.x, y: v.was.y}, 500)
+          .onUpdate ->
+            v.set @x, @y
+          .onComplete ->
+            v.copy v.was
+          .easing(TWEEN.Easing.Bounce.Out)
+          .start()
 
   bounce: (worldPoint) ->
     localPoint = @localPositionAt worldPoint
