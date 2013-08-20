@@ -1,9 +1,31 @@
 vec2 = (x, y) -> new Two.Vector(x, y)
 
+class Rect
+  constructor: (@x, @y, @w, @h) ->
+
+  intersection: (pos) ->
+    @x <= pos.x and
+    @y <= pos.y and
+    @x + @w >= pos.x and
+    @y + @h >= pos.y
+
+  tl: -> { x: @x,      y: @y }
+  tr: -> { x: @x + @w, y: @y }
+  bl: -> { x: @x,      y: @y + @h }
+  br: -> { x: @x + @w, y: @y + @h }
+  corners: ->
+    tl: @tl()
+    tr: @tr()
+    bl: @bl()
+    br: @br()
+  cornersArray: -> [@tl(), @tr(), @bl(), @br()]
+
 class Book extends Backbone.Model
   defaults:
     x: 0
     y: 0
+
+  rect: -> new Rect(@get('x'), @get('y'), @get('w'), @get('h'))
 
 class Books extends Backbone.Collection
   model: Book
@@ -20,16 +42,13 @@ class Circle extends Backbone.Model
     radius2 = r * r
     v = vec2(@get('x'), @get('y'))
 
-    x = book.get('x')
-    y = book.get('y')
-    w = book.get('w')
-    h = book.get('h')
+    rect = book.rect()
 
     # TODO: 頂点しか比較してないので未完成
-    if (v.distanceToSquared(x: x,     y: y)     <= radius2) or # top left
-       (v.distanceToSquared(x: x + w, y: y)     <= radius2) or # top right
-       (v.distanceToSquared(x: x,     y: y + h) <= radius2) or # bottom left
-       (v.distanceToSquared(x: x + w, y: y + h) <= radius2)    # bottom right
+    if (v.distanceToSquared(rect.tl()) <= radius2) or
+       (v.distanceToSquared(rect.tr()) <= radius2) or
+       (v.distanceToSquared(rect.bl()) <= radius2) or
+       (v.distanceToSquared(rect.br()) <= radius2)   
       @trigger 'collide', book
 
 class Circles extends Backbone.Collection
@@ -76,8 +95,7 @@ class CircleView extends Backbone.View
     _.each @shape.vertices, (v) ->
       v.was = v.clone()
 
-    @listenTo @model, 'collide', (rect) ->
-      console.log('collision!!!!')
+    @listenTo @model, 'collide', _.bind(@collision, this)
 
   updateColor: ->
     colors = [
@@ -100,22 +118,27 @@ class CircleView extends Backbone.View
   intersection: (worldPos) ->
     @shape.translation.distanceToSquared(worldPos) <= @radius * @radius
 
-  collision: (worldPos) ->
-    radius2 = @radius * @radius
-    diffToSquared = @shape.translation.distanceToSquared(worldPos) - radius2
-    if Math.abs(diffToSquared) > radius2 * 0.4
-      @reset()
-      return
-
+  # TODO: かなり手抜き
+  collision: (book) ->
+    console.log book
+    rect = book.rect()
+    corners = rect.corners()
+    t = @shape.translation
+    corner = _.min(rect.cornersArray(), (c) -> t.distanceToSquared(c))
+      
+    radius = @model.get('r')
+    radius2 = radius * radius
     vertices = @shape.vertices
-    localPos = @localPositionAt worldPos
-    stretchVertex = _.min(vertices, (v) -> v.distanceToSquared(localPos))
+    stretchVertex = _.min(vertices, (v) -> v.distanceToSquared(corner))
+    stretchVertex.copy corner
     if stretchVertex.tween
       stretchVertex.tween.stop()
       stretchVertex.tween = null
-    stretchVertex.copy(localPos)
 
-    v.copy(v.was) for v in vertices when not v.equals(stretchVertex)
+    if Math.abs(stretchVertex.distanceToSquared(stretchVertex.was)) > radius2 * 0.3
+      @reset()
+    else
+      v.copy(v.was) for v in vertices when not v.equals(stretchVertex)
 
   reset: ->
     _.each @shape.vertices, (v) ->
