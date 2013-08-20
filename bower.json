@@ -8,6 +8,7 @@
     "backbone": "latest",
     "two": "latest",
     "hogan": "latest",
-    "tweenjs": "latest"
+    "tweenjs": "latest",
+    "jquery-ui": "~1.10.3"
   }
 }

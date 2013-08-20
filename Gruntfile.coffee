@@ -48,6 +48,13 @@ module.exports = (grunt) ->
           'bower_components/backbone/backbone.js'
           'bower_components/hogan/web/builds/2.0.0/hogan-2.0.0.js'
           'bower_components/tweenjs/src/Tween.js'
+          'bower_components/jquery-ui/ui/jquery.ui.core.js'
+          'bower_components/jquery-ui/ui/jquery.ui.widget.js'
+          'bower_components/jquery-ui/ui/jquery.ui.mouse.js'
+          'bower_components/jquery-ui/ui/jquery.ui.draggable.js'
+          'bower_components/jquery-ui/ui/jquery.ui.droppable.js'
+          'bower_components/jquery-ui/ui/jquery.ui.selectable.js'
+          'bower_components/jquery-ui/ui/jquery.ui.sortable.js'
           ],
         dest: "<%= meta.build.client %>/vendor.js"
       app:

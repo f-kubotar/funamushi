@@ -1,6 +1,11 @@
 vec2 = (x, y) -> new Two.Vector(x, y)
 
 class Book extends Backbone.Model
+  attributes:
+    x: 0
+    y: 0
+    w: 0
+    h: 0
 
 class BookView extends Backbone.View
   tagName: 'img'
@@ -10,17 +15,12 @@ class BookView extends Backbone.View
     @rect = {}
 
   attributes: ->
-    style: 'position: absolute; z-index: 1000;'
+    style: 'display: inline-block; overflow: hidden; position: absolute; z-index: 1000;'
     src: @model.get('image_url')
     alt: @model.get('title')
 
-  events:
-    'mousedown': (e) ->
-      @hold = true
-      @trigger 'hold', this
-
-    'mouseup': (e) ->
-      @hold = false
+  initialize: ->
+    @$el.draggable()
 
 class CircleView extends Backbone.View
   el: 'body'
