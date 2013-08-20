@@ -1,12 +1,18 @@
 vec2 = (x, y) -> new Two.Vector(x, y)
 
+class Book extends Backbone.Model
+
 class BookView extends Backbone.View
   tagName: 'img'
   className: 'book'
-  attributes:
+
+  initialize: ->
+    @rect = {}
+
+  attributes: ->
     style: 'position: absolute; z-index: 1000;'
-    src: './img/m.jpg'
-    alt: 'ムーミン谷の冬'
+    src: @model.get('image_url')
+    alt: @model.get('title')
 
   events:
     'mousedown': (e) ->
@@ -202,7 +208,8 @@ class WorldView extends Backbone.View
       y: @two.height / 2
       radius: @two.height / 3
 
-    @bookView = new BookView
+    @book = new Book(title: 'ムーミン谷の冬', image_url: './img/m.jpg')
+    @bookView = new BookView(model: @book)
 
     @listenTo @bookView, 'hold', (bookView) ->
       @holdBookView = bookView
