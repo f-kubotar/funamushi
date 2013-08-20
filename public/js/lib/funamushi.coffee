@@ -1,11 +1,24 @@
 vec2 = (x, y) -> new Two.Vector(x, y)
 
 class Book extends Backbone.Model
-  attributes:
+  defaults:
     x: 0
     y: 0
     w: 0
     h: 0
+
+class Books extends Backbone.Collection
+  model: Book
+
+class Circle extends Backbone.Model
+  defaults: -> 
+    x: 0
+    y: 0
+    r: 0
+    books: new Books
+
+class Circles extends Backbone.Collection
+  model: Circle
 
 class BookView extends Backbone.View
   tagName: 'img'
@@ -15,29 +28,30 @@ class BookView extends Backbone.View
     @rect = {}
 
   attributes: ->
-    style: 'display: inline-block; overflow: hidden; position: absolute; z-index: 1000;'
+    style: 'display: inline-block; position: absolute; z-index: 1000;'
     src: @model.get('image_url')
     alt: @model.get('title')
+
+  events:
+    'drag': (e) ->
+      @model.set(x: e.pageX, y: e.pageY)
 
   initialize: ->
     @$el.draggable()
 
+class BooksView extends Backbone.View
+  render: ->
+    $el = @$el
+    @collection.each (book) ->
+      bookView = new BookView(model: book)
+      $el.append bookView.render().el
+    this
+
 class CircleView extends Backbone.View
-  el: 'body'
-
-  events:
-    'mousemove': (e) ->
-      if @world.dragging
-        @collision @world.worldPositionFromMouseEvent(e)
-
-    'mouseup': (e) -> 
-      @reset()
-
   initialize: (options) ->
-    @world = options.world
+    @two = options.two
 
-    @radius = options.radius
-    @shape = @world.two.makeCircle options.x, options.y, options.radius
+    @shape = @two.makeCircle(@model.get('x'), @model.get('y'), @model.get('r'))
     @shape.linewidth = 1
     # @shape.noStroke()
     @shape.noFill()
@@ -45,18 +59,12 @@ class CircleView extends Backbone.View
     _.each @shape.vertices, (v) ->
       v.was = v.clone()
 
-    # @resetColor()
-
-    # @listenTo @two, 'update', _.throttle(@resetColor, 500)
-    # @listenTo @two, 'update', @update
-    # @mutation()
-    
-    # Call only once a frame.
-    # this.reset = _.debounce(_.bind(CircleView.prototype.reset, this), 0)
+    @listenTo @model, 'collision', (rect) ->
+      console.log('collision!!!!')
 
   resetColor: ->
     colors = [
-      '#F4D6E0'
+      #F4D6E0'
       '#DE7699'
       '#CCE9F9'
       '#4CBAEB'
@@ -71,9 +79,6 @@ class CircleView extends Backbone.View
   localPositionAt: (worldPos) ->
     t = @shape.translation
     vec2(worldPos.x - t.x, worldPos.y - t.y)
-
-  localPositionFromMouseEvent: (e) ->
-    localPositionAt @world.worldPositionFromMouseEvent(e)
 
   intersection: (worldPos) ->
     @shape.translation.distanceToSquared(worldPos) <= @radius * @radius
@@ -109,46 +114,41 @@ class CircleView extends Backbone.View
           .easing(TWEEN.Easing.Bounce.Out)
           .start()
 
+class CirclesView extends Backbone.View
+  initialize: (options) ->
+    @two = options.two
+
+  render: ->
+    two = @two
+    @collection.each (circle) ->
+      new CircleView(model: circle, two: two)
+
 class WorldView extends Backbone.View
   el: 'body'
-
-  events:
-    'mousedown': ->
-      @dragging = true
-
-    'mousemove': (e) ->
-      if @holdBookView
-        worldPos = @worldPositionFromMouseEvent(e)
-        @holdBookView.$el.css
-          left: worldPos.x + 'px'
-          top:  worldPos.y + 'px'
-
-    'mouseup': ->
-      @dragging = false
-      @holdBook = null
 
   initialize: ->
     Two.Resolution = 12;
 
-    @two = new Two(fullscreen: true, autostart: true).appendTo(@el)
-    @listenTo @two, 'update', ->
+    two = new Two(fullscreen: true, autostart: true).appendTo(@el)
+    @listenTo two, 'update', ->
       TWEEN.update()
 
-    @circles = []
+    circles = new Circles [
+      { x: two.width / 2, y: two.height / 2, r: two.height / 3 }
+    ]
 
-    @circleView = new CircleView
-      world: this
-      x: @two.width / 2
-      y: @two.height / 2
-      radius: @two.height / 3
+    books = new Books [
+      { title: 'ムーミン谷の冬', image_url: './img/m.jpg' }
+    ]
 
-    @book = new Book(title: 'ムーミン谷の冬', image_url: './img/m.jpg')
-    @bookView = new BookView(model: @book)
+    @listenTo books, 'change', (book) ->
+      console.log book
 
-    @listenTo @bookView, 'hold', (bookView) ->
-      @holdBookView = bookView
+    @circlesView = new CirclesView(collection: circles, two: two)
+    @circlesView.render()
 
-    $('#draw').append @bookView.render().el
+    @booksView   = new BooksView(collection: books)
+    $('#draw').append @booksView.render().el
 
   worldPositionFromMouseEvent: (e) ->
     { x: e.pageX, y: e.pageY }
