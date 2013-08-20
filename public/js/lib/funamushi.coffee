@@ -109,50 +109,6 @@ class CircleView extends Backbone.View
           .easing(TWEEN.Easing.Bounce.Out)
           .start()
 
-  bounce: (worldPoint) ->
-    localPoint = @localPositionAt worldPoint
-
-    v = _.min(@shape.vertices, (v) -> d = v.distanceToSquared(localPoint))
-    beforePos = { x: v.x, y: v.y }
-
-    new TWEEN.Tween(x: localPoint.x, y: localPoint.y)
-      .to({ x: v.x, y: v.y}, 500)
-      .onUpdate ->
-        v.x = @x
-        v.y = @y
-      .onComplete ->
-        v.x = beforePos.x
-        v.y = beforePos.y
-      .easing(TWEEN.Easing.Elastic.InOut)
-      .start()
-
-  mutation: ->
-    vertices = @shape.vertices
-    n = vertices.length
-    winWidth  = @world.two.width
-    winHeight = @world.two.height
-
-    @squished = false
-
-    for i in [0...n]
-      v = vertices[i]
-      pct = (i + 1) / n
-      theta = pct * Math.PI * 2
-      radius = Math.random() * winHeight / 3 + winHeight / 6
-      x = radius * Math.cos(theta)
-      y = radius * Math.sin(theta)
-      v.set(winHeight / 3 * Math.cos(theta), winHeight / 3 * Math.sin(theta))
-      ( (v, x, y) ->
-        tween = new TWEEN.Tween(x: v.x, y: v.y).to({x: x, y: y}, 2000)
-        tween.onUpdate ->
-          v.x = this.x
-          v.y = this.y
-        tween.easing TWEEN.Easing.Elastic.InOut
-        tween.start()
-      )(v, x, y)
-
-    # @updateColor()
-
 class WorldView extends Backbone.View
   el: 'body'
 
