@@ -13,11 +13,16 @@ class Rect
   tr: -> { x: @x + @w, y: @y }
   bl: -> { x: @x,      y: @y + @h }
   br: -> { x: @x + @w, y: @y + @h }
+  center: ->
+    x: @x + @w / 2
+    y: @y + @h / 2
+
   corners: ->
     tl: @tl()
     tr: @tr()
     bl: @bl()
     br: @br()
+
   cornersArray: -> [@tl(), @tr(), @bl(), @br()]
 
 class Book extends Backbone.Model
@@ -117,7 +122,8 @@ class CircleView extends Backbone.View
     vec2(worldPos.x - t.x, worldPos.y - t.y)
 
   intersection: (worldPos) ->
-    @shape.translation.distanceToSquared(worldPos) <= @radius * @radius
+    radius = @model.get('r')
+    @shape.translation.distanceToSquared(worldPos) <= radius * radius
 
   # TODO: かなり手抜き
   collision: (book) ->
@@ -134,19 +140,28 @@ class CircleView extends Backbone.View
     holdDistanceToSquared = radius2 * 0.3
 
     # 内側
-    isInner = _.all(corners, (c) -> (t.distanceToSquared(c)) <= radius2)
+    # isInner = _.all(corners, (c) -> (t.distanceToSquared(c)) <= radius2)
+    isInner = @intersection(rect.center())
     corner =
       if isInner
         _.max(corners, (c) -> t.distanceToSquared(c))
       else
         _.min(corners, (c) -> t.distanceToSquared(c))
   
+    cornerToRadius2 = t.distanceToSquared(corner)
+    if isInner
+      return if cornerToRadius2 < radius2
+
     cornerLocal = @localPositionAt(corner)
     stretchVertex = _.min(vertices, (v) -> v.distanceToSquared(cornerLocal))
     stretchVertex.copy cornerLocal
-    if Math.abs(stretchVertex.distanceToSquared(stretchVertex.was)) > holdDistanceToSquared
+
+    if (@stretchVertex? and @stretchVertex != stretchVertex) or
+       (Math.abs(stretchVertex.distanceToSquared(stretchVertex.was)) > holdDistanceToSquared)
+      @stretchVertex = null
       @reset()
     else
+      @stretchVertex = stretchVertex
       v.copy(v.was) for v in vertices when not v.equals(stretchVertex)
       if stretchVertex.tween
         stretchVertex.tween.stop()
