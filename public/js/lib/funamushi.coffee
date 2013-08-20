@@ -85,7 +85,7 @@ class BooksView extends Backbone.View
 
 class CircleView extends Backbone.View
   initialize: (options) ->
-    @resetting = false
+    @canCollide = true
     @two = options.two
 
     @shape = @two.makeCircle(@model.get('x'), @model.get('y'), @model.get('r'))
@@ -121,20 +121,30 @@ class CircleView extends Backbone.View
 
   # TODO: かなり手抜き
   collision: (book) ->
-    return if @resetting
+    return unless @canCollide
 
     rect = book.rect()
-    corners = rect.corners()
+    corners = rect.cornersArray()
+
     t = @shape.translation
-    corner = _.min(rect.cornersArray(), (c) -> t.distanceToSquared(c))
-    cornerLocal = @localPositionAt(corner)
-      
+    vertices = @shape.vertices
     radius   = @model.get('r')
     radius2  = radius * radius
-    vertices = @shape.vertices
+    
+    holdDistanceToSquared = radius2 * 0.3
+
+    # 内側
+    isInner = _.all(corners, (c) -> (t.distanceToSquared(c)) <= radius2)
+    corner =
+      if isInner
+        _.max(corners, (c) -> t.distanceToSquared(c))
+      else
+        _.min(corners, (c) -> t.distanceToSquared(c))
+  
+    cornerLocal = @localPositionAt(corner)
     stretchVertex = _.min(vertices, (v) -> v.distanceToSquared(cornerLocal))
     stretchVertex.copy cornerLocal
-    if Math.abs(stretchVertex.distanceToSquared(stretchVertex.was)) > (radius2 * 0.3)
+    if Math.abs(stretchVertex.distanceToSquared(stretchVertex.was)) > holdDistanceToSquared
       @reset()
     else
       v.copy(v.was) for v in vertices when not v.equals(stretchVertex)
@@ -144,7 +154,7 @@ class CircleView extends Backbone.View
 
   reset: ->
     that = this
-    that.resetting = true
+    that.canCollide = false
     promises = []
     _.each @shape.vertices, (v) -> 
       unless v.equals(v.was)
@@ -163,7 +173,7 @@ class CircleView extends Backbone.View
         promises.push d.promise()
 
     $.when.apply($, promises).done ->
-      that.resetting = false
+      that.canCollide = true
 
 class CirclesView extends Backbone.View
   initialize: (options) ->
