@@ -85,6 +85,7 @@ class BooksView extends Backbone.View
 
 class CircleView extends Backbone.View
   initialize: (options) ->
+    @resetting = false
     @two = options.two
 
     @shape = @two.makeCircle(@model.get('x'), @model.get('y'), @model.get('r'))
@@ -120,39 +121,49 @@ class CircleView extends Backbone.View
 
   # TODO: かなり手抜き
   collision: (book) ->
-    console.log book
+    return if @resetting
+
     rect = book.rect()
     corners = rect.corners()
     t = @shape.translation
     corner = _.min(rect.cornersArray(), (c) -> t.distanceToSquared(c))
+    cornerLocal = @localPositionAt(corner)
       
-    radius = @model.get('r')
-    radius2 = radius * radius
+    radius   = @model.get('r')
+    radius2  = radius * radius
     vertices = @shape.vertices
-    stretchVertex = _.min(vertices, (v) -> v.distanceToSquared(corner))
-    stretchVertex.copy corner
-    if stretchVertex.tween
-      stretchVertex.tween.stop()
-      stretchVertex.tween = null
-
-    if Math.abs(stretchVertex.distanceToSquared(stretchVertex.was)) > radius2 * 0.3
+    stretchVertex = _.min(vertices, (v) -> v.distanceToSquared(cornerLocal))
+    stretchVertex.copy cornerLocal
+    if Math.abs(stretchVertex.distanceToSquared(stretchVertex.was)) > (radius2 * 0.3)
       @reset()
     else
       v.copy(v.was) for v in vertices when not v.equals(stretchVertex)
+      if stretchVertex.tween
+        stretchVertex.tween.stop()
+        stretchVertex.tween = null
 
   reset: ->
-    _.each @shape.vertices, (v) ->
+    that = this
+    that.resetting = true
+    promises = []
+    _.each @shape.vertices, (v) -> 
       unless v.equals(v.was)
         v.tween.stop() if v.tween
 
+        d = $.Deferred()
         v.tween = new TWEEN.Tween(x: v.x, y: v.y)
           .to({ x: v.was.x, y: v.was.y}, 500)
           .onUpdate ->
             v.set @x, @y
           .onComplete ->
             v.copy v.was
+            d.resolve()
           .easing(TWEEN.Easing.Bounce.Out)
           .start()
+        promises.push d.promise()
+
+    $.when.apply($, promises).done ->
+      that.resetting = false
 
 class CirclesView extends Backbone.View
   initialize: (options) ->
