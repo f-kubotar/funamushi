@@ -4,8 +4,6 @@ class Book extends Backbone.Model
   defaults:
     x: 0
     y: 0
-    w: 0
-    h: 0
 
 class Books extends Backbone.Collection
   model: Book
@@ -24,15 +22,17 @@ class BookView extends Backbone.View
   tagName: 'img'
   className: 'book'
 
-  initialize: ->
-    @rect = {}
-
   attributes: ->
     style: 'display: inline-block; position: absolute; z-index: 1000;'
     src: @model.get('image_url')
     alt: @model.get('title')
 
   events:
+    'load': ->
+      if !@model.get('w')? or !@model.get('h')?
+        @model.set w: @$el.width(), h: @$el.height()
+        console.log @model.toJSON()
+
     'drag': (e) ->
       @model.set(x: e.pageX, y: e.pageY)
 
