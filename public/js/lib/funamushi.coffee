@@ -15,6 +15,23 @@ class Circle extends Backbone.Model
     r: 0
     books: new Books
 
+  collision: (book) ->
+    r = @get('r')
+    radius2 = r * r
+    v = vec2(@get('x'), @get('y'))
+
+    x = book.get('x')
+    y = book.get('y')
+    w = book.get('w')
+    h = book.get('h')
+
+    # TODO: 頂点しか比較してないので未完成
+    if (v.distanceToSquared(x: x,     y: y)     <= radius2) or # top left
+       (v.distanceToSquared(x: x + w, y: y)     <= radius2) or # top right
+       (v.distanceToSquared(x: x,     y: y + h) <= radius2) or # bottom left
+       (v.distanceToSquared(x: x + w, y: y + h) <= radius2)    # bottom right
+      @trigger 'collide', book
+
 class Circles extends Backbone.Collection
   model: Circle
 
@@ -31,10 +48,10 @@ class BookView extends Backbone.View
     'load': ->
       if !@model.get('w')? or !@model.get('h')?
         @model.set w: @$el.width(), h: @$el.height()
-        console.log @model.toJSON()
 
     'drag': (e) ->
-      @model.set(x: e.pageX, y: e.pageY)
+      pos = @$el.position()
+      @model.set(x: pos.left, y: pos.top)
 
   initialize: ->
     @$el.draggable()
@@ -59,10 +76,10 @@ class CircleView extends Backbone.View
     _.each @shape.vertices, (v) ->
       v.was = v.clone()
 
-    @listenTo @model, 'collision', (rect) ->
+    @listenTo @model, 'collide', (rect) ->
       console.log('collision!!!!')
 
-  resetColor: ->
+  updateColor: ->
     colors = [
       #F4D6E0'
       '#DE7699'
@@ -142,7 +159,8 @@ class WorldView extends Backbone.View
     ]
 
     @listenTo books, 'change', (book) ->
-      console.log book
+      circles.each (circle) ->
+        circle.collision book
 
     @circlesView = new CirclesView(collection: circles, two: two)
     @circlesView.render()
